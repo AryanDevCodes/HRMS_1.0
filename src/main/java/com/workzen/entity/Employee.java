@@ -41,7 +41,7 @@ public class Employee extends BaseEntity implements UserDetails {
     @Column(name = "password_hash", nullable = false)
     private String password;
     
-    @Column(name = "phone", unique = true, length = 20)
+    @Column(name = "phone", unique = true, length = 50)
     private String phone;
     
     @Column(name = "date_of_birth")
@@ -99,7 +99,7 @@ public class Employee extends BaseEntity implements UserDetails {
     @Column(name = "emergency_contact_name", length = 100)
     private String emergencyContactName;
     
-    @Column(name = "emergency_contact_phone", length = 20)
+    @Column(name = "emergency_contact_phone", length = 50)
     private String emergencyContactPhone;
     
     @Column(name = "emergency_contact_relation", length = 50)
@@ -121,9 +121,19 @@ public class Employee extends BaseEntity implements UserDetails {
     @Column(name = "profile_picture_url")
     private String profilePictureUrl;
     
+    @Column(name = "company_name", length = 100)
+    private String companyName;
+    
+    @Column(name = "company_logo_url")
+    private String companyLogoUrl;
+    
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;
+    
+    @Column(name = "is_first_login")
+    @Builder.Default
+    private Boolean isFirstLogin = true;
     
     // UserDetails implementation for Spring Security
     @Override

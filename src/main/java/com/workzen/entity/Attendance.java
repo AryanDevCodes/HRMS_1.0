@@ -1,5 +1,6 @@
 package com.workzen.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.workzen.enums.AttendanceStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -20,6 +21,7 @@ public class Attendance extends BaseEntity {
     
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "employee_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Employee employee;
     
     @Column(name = "date", nullable = false)

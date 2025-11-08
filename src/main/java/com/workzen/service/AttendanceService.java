@@ -2,8 +2,11 @@ package com.workzen.service;
 
 import com.workzen.entity.Attendance;
 import com.workzen.entity.Employee;
+import com.workzen.entity.LeaveApplication;
 import com.workzen.enums.AttendanceStatus;
+import com.workzen.enums.LeaveStatus;
 import com.workzen.repository.AttendanceRepository;
+import com.workzen.repository.LeaveApplicationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +24,7 @@ import java.util.List;
 public class AttendanceService {
     
     private final AttendanceRepository attendanceRepository;
+    private final LeaveApplicationRepository leaveApplicationRepository;
     
     public Attendance checkIn(Employee employee, LocalDateTime checkInTime) {
         LocalDate date = checkInTime.toLocalDate();
@@ -37,6 +41,29 @@ public class AttendanceService {
                 .build();
         
         return attendanceRepository.save(attendance);
+    }
+    
+    /**
+     * Automatically mark attendance when user logs in
+     * If attendance already exists for today, just return it
+     */
+    public Attendance markAttendanceOnLogin(Employee employee) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
+        
+        // Check if attendance already exists for today
+        return attendanceRepository.findByEmployeeAndDate(employee, today)
+                .orElseGet(() -> {
+                    // Create new attendance record with check-in time
+                    Attendance attendance = Attendance.builder()
+                            .employee(employee)
+                            .date(today)
+                            .checkIn(now)
+                            .status(AttendanceStatus.PRESENT)
+                            .remarks("Auto-marked on login")
+                            .build();
+                    return attendanceRepository.save(attendance);
+                });
     }
     
     public Attendance checkOut(Employee employee, LocalDateTime checkOutTime) {
@@ -127,5 +154,15 @@ public class AttendanceService {
     public void deleteAttendance(Long id) {
         Attendance attendance = findById(id);
         attendanceRepository.delete(attendance);
+    }
+    
+    public boolean hasApprovedLeaveToday(Employee employee) {
+        LocalDate today = LocalDate.now();
+        List<LeaveApplication> approvedLeaves = leaveApplicationRepository
+                .findByEmployeeAndStatus(employee, LeaveStatus.APPROVED);
+        
+        return approvedLeaves.stream()
+                .anyMatch(leave -> !today.isBefore(leave.getStartDate()) && 
+                                 !today.isAfter(leave.getEndDate()));
     }
 }

@@ -2,23 +2,27 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Plus } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { employeeApi, departmentApi, designationApi } from '@/lib/api';
 
 const employeeSchema = z.object({
   firstName: z.string().min(2, 'First name must be at least 2 characters'),
   lastName: z.string().min(2, 'Last name must be at least 2 characters'),
   email: z.string().email('Please enter a valid email address'),
-  phone: z.string().min(10, 'Please enter a valid phone number'),
-  department: z.string().min(1, 'Please select a department'),
-  position: z.string().min(2, 'Position must be at least 2 characters'),
-  joinDate: z.string().min(1, 'Please select a join date'),
+  phoneNumber: z.string().min(10, 'Please enter a valid phone number'),
+  departmentId: z.string().min(1, 'Please select a department'),
+  designationId: z.string().min(1, 'Please select a designation'),
+  joiningDate: z.string().min(1, 'Please select a join date'),
   salary: z.string().min(1, 'Please enter a salary'),
+  address: z.string().optional(),
+  employeeId: z.string().optional(),
 });
 
 type EmployeeFormValues = z.infer<typeof employeeSchema>;
@@ -26,6 +30,21 @@ type EmployeeFormValues = z.infer<typeof employeeSchema>;
 export default function AddEmployeeDialog() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch departments and designations
+  const { data: departmentsData } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => departmentApi.getAll(),
+  });
+
+  const { data: designationsData } = useQuery({
+    queryKey: ['designations'],
+    queryFn: () => designationApi.getAll(),
+  });
+
+  const departments = departmentsData || [];
+  const designations = designationsData || [];
 
   const form = useForm<EmployeeFormValues>({
     resolver: zodResolver(employeeSchema),
@@ -33,23 +52,44 @@ export default function AddEmployeeDialog() {
       firstName: '',
       lastName: '',
       email: '',
-      phone: '',
-      department: '',
-      position: '',
-      joinDate: '',
+      phoneNumber: '',
+      departmentId: '',
+      designationId: '',
+      joiningDate: '',
       salary: '',
+      address: '',
+      employeeId: '',
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: any) => employeeApi.create(data),
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Employee added successfully',
+      });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      setOpen(false);
+      form.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to add employee',
+        variant: 'destructive',
+      });
     },
   });
 
   const onSubmit = (data: EmployeeFormValues) => {
-    // TODO: Implement API call to add employee
-    console.log('Employee data:', data);
-    toast({
-      title: 'Employee added successfully',
-      description: `${data.firstName} ${data.lastName} has been added to the system.`,
-    });
-    setOpen(false);
-    form.reset();
+    const payload = {
+      ...data,
+      departmentId: parseInt(data.departmentId),
+      designationId: parseInt(data.designationId),
+      salary: parseFloat(data.salary),
+    };
+    createMutation.mutate(payload);
   };
 
   return (
@@ -112,7 +152,7 @@ export default function AddEmployeeDialog() {
 
             <FormField
               control={form.control}
-              name="phone"
+              name="phoneNumber"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Phone Number</FormLabel>
@@ -127,7 +167,7 @@ export default function AddEmployeeDialog() {
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="department"
+                name="departmentId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Department</FormLabel>
@@ -138,12 +178,11 @@ export default function AddEmployeeDialog() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Engineering">Engineering</SelectItem>
-                        <SelectItem value="Marketing">Marketing</SelectItem>
-                        <SelectItem value="Sales">Sales</SelectItem>
-                        <SelectItem value="HR">HR</SelectItem>
-                        <SelectItem value="Finance">Finance</SelectItem>
-                        <SelectItem value="Operations">Operations</SelectItem>
+                        {departments.map((dept: any) => (
+                          <SelectItem key={dept.id} value={dept.id.toString()}>
+                            {dept.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -153,13 +192,24 @@ export default function AddEmployeeDialog() {
 
               <FormField
                 control={form.control}
-                name="position"
+                name="designationId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Position</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Software Engineer" {...field} />
-                    </FormControl>
+                    <FormLabel>Designation</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select designation" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {designations.map((designation: any) => (
+                          <SelectItem key={designation.id} value={designation.id.toString()}>
+                            {designation.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -169,7 +219,7 @@ export default function AddEmployeeDialog() {
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="joinDate"
+                name="joiningDate"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Join Date</FormLabel>
@@ -196,11 +246,47 @@ export default function AddEmployeeDialog() {
               />
             </div>
 
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Address (Optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="123 Main St, City, State, ZIP" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="employeeId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Employee ID (Optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="EMP001" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setOpen(false)}
+                disabled={createMutation.isPending}
+              >
                 Cancel
               </Button>
-              <Button type="submit">Add Employee</Button>
+              <Button type="submit" disabled={createMutation.isPending}>
+                {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Add Employee
+              </Button>
             </div>
           </form>
         </Form>

@@ -35,24 +35,28 @@ public class DepartmentController {
     }
     
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Department> getDepartmentById(@PathVariable Long id) {
         Department department = departmentService.findById(id);
         return ResponseEntity.ok(department);
     }
     
     @GetMapping("/{id}/with-manager")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Department> getDepartmentWithManager(@PathVariable Long id) {
         Department department = departmentService.findByIdWithManager(id);
         return ResponseEntity.ok(department);
     }
     
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Department>> getAllDepartments() {
         List<Department> departments = departmentService.findAll();
         return ResponseEntity.ok(departments);
     }
     
     @GetMapping("/active")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Department>> getActiveDepartments() {
         List<Department> departments = departmentService.findAllActive();
         return ResponseEntity.ok(departments);

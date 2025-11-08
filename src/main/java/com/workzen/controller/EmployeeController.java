@@ -33,12 +33,12 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/employees")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class EmployeeController {
     
     private final EmployeeService employeeService;
     private final DepartmentService departmentService;
     private final DesignationService designationService;
+    private final com.workzen.service.SalaryStructureService salaryStructureService;
     
     // Create employee - Admin only
     @PostMapping
@@ -173,6 +173,7 @@ public class EmployeeController {
     
     // Get current user profile
     @GetMapping("/profile")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<EmployeeResponse> getCurrentUserProfile(Authentication authentication) {
         Employee employee = (Employee) authentication.getPrincipal();
         return ResponseEntity.ok(mapToResponse(employee));
@@ -180,13 +181,13 @@ public class EmployeeController {
     
     // Update current user profile (limited fields)
     @PutMapping("/profile")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<EmployeeResponse> updateCurrentUserProfile(
             @RequestBody EmployeeRequest request,
             Authentication authentication
     ) {
         Employee currentEmployee = (Employee) authentication.getPrincipal();
         
-        // Only allow updating certain fields
         currentEmployee.setPhone(request.getPhoneNumber());
         currentEmployee.setAddress(request.getAddress());
         currentEmployee.setEmergencyContactName(request.getEmergencyContactName());
@@ -276,6 +277,15 @@ public class EmployeeController {
                 .build();
         
         return ResponseEntity.ok(stats);
+    }
+    
+    // Get employee salary breakdown - Admin and Payroll Officer only
+    @GetMapping("/{id}/salary-structure")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('PAYROLL_OFFICER') or hasRole('HR_MANAGER')")
+    public ResponseEntity<com.workzen.dto.SalaryBreakdownDTO> getEmployeeSalaryStructure(@PathVariable Long id) {
+        Employee employee = employeeService.findById(id);
+        com.workzen.dto.SalaryBreakdownDTO breakdown = salaryStructureService.calculateEmployeeSalary(employee);
+        return ResponseEntity.ok(breakdown);
     }
     
     // Validate employee ID format

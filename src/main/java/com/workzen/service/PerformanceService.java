@@ -95,22 +95,17 @@ public class PerformanceService {
     private Double calculateOverallRating(Performance performance) {
         int count = 0;
         double total = 0.0;
-        
-        if (performance.getOverallRating() != null) {
-            total += performance.getOverallRating();
-            count++;
-        }
-        
+
         if (performance.getTechnicalSkillsRating() != null) {
             total += performance.getTechnicalSkillsRating();
             count++;
         }
-        
+
         if (performance.getCommunicationRating() != null) {
             total += performance.getCommunicationRating();
             count++;
         }
-        
+
         if (performance.getTeamworkRating() != null) {
             total += performance.getTeamworkRating();
             count++;

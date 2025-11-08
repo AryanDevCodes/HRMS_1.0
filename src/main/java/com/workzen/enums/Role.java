@@ -6,6 +6,9 @@ public enum Role {
     
     // HR Department Roles
     HR_MANAGER("HR Manager"),
+    
+    // Employee Role
+    EMPLOYEE("Employee"),
 
     PAYROLL_OFFICER("Payroll Officer");
     

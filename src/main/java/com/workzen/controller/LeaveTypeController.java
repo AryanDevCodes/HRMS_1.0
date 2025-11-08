@@ -32,18 +32,21 @@ public class LeaveTypeController {
     }
     
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<LeaveType> getLeaveTypeById(@PathVariable Long id) {
         LeaveType leaveType = leaveTypeService.findById(id);
         return ResponseEntity.ok(leaveType);
     }
     
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<LeaveType>> getAllLeaveTypes() {
         List<LeaveType> leaveTypes = leaveTypeService.findAll();
         return ResponseEntity.ok(leaveTypes);
     }
     
     @GetMapping("/active")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<LeaveType>> getActiveLeaveTypes() {
         List<LeaveType> leaveTypes = leaveTypeService.findAllActive();
         return ResponseEntity.ok(leaveTypes);

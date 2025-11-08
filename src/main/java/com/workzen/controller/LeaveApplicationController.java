@@ -31,6 +31,7 @@ public class LeaveApplicationController {
     private final LeaveTypeService leaveTypeService;
     
     @PostMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<LeaveApplication> applyLeave(@AuthenticationPrincipal UserDetails userDetails,
                                                         @RequestBody Map<String, Object> request) {
         Employee employee = (Employee) userDetails;
@@ -69,6 +70,7 @@ public class LeaveApplicationController {
     }
     
     @PatchMapping("/{id}/cancel")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<LeaveApplication> cancelLeave(@PathVariable Long id,
                                                          @AuthenticationPrincipal UserDetails userDetails) {
         Employee employee = (Employee) userDetails;
@@ -77,12 +79,14 @@ public class LeaveApplicationController {
     }
     
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<LeaveApplication> getLeaveApplicationById(@PathVariable Long id) {
         LeaveApplication leaveApplication = leaveApplicationService.findByIdWithDetails(id);
         return ResponseEntity.ok(leaveApplication);
     }
     
     @GetMapping("/my-leaves")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<LeaveApplication>> getMyLeaves(@AuthenticationPrincipal UserDetails userDetails) {
         Employee employee = (Employee) userDetails;
         List<LeaveApplication> leaves = leaveApplicationService.getEmployeeLeaves(employee);
@@ -90,6 +94,7 @@ public class LeaveApplicationController {
     }
     
     @GetMapping("/my-leaves/paginated")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Page<LeaveApplication>> getMyLeavesPaginated(@AuthenticationPrincipal UserDetails userDetails,
                                                                          Pageable pageable) {
         Employee employee = (Employee) userDetails;

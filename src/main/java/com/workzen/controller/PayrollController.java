@@ -54,6 +54,7 @@ public class PayrollController {
     }
     
     @GetMapping("/my-payrolls")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Payroll>> getMyPayrolls(@AuthenticationPrincipal UserDetails userDetails) {
         Employee employee = (Employee) userDetails;
         List<Payroll> payrolls = payrollService.getEmployeePayrolls(employee);
@@ -61,6 +62,7 @@ public class PayrollController {
     }
     
     @GetMapping("/my-payrolls/paginated")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Page<Payroll>> getMyPayrollsPaginated(@AuthenticationPrincipal UserDetails userDetails,
                                                                  Pageable pageable) {
         Employee employee = (Employee) userDetails;
@@ -69,6 +71,7 @@ public class PayrollController {
     }
     
     @GetMapping("/my-payrolls/period")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Payroll>> getMyPayrollForPeriod(@AuthenticationPrincipal UserDetails userDetails,
                                                           @RequestParam LocalDate startDate,
                                                           @RequestParam LocalDate endDate) {
@@ -116,5 +119,102 @@ public class PayrollController {
     public ResponseEntity<Void> deletePayroll(@PathVariable Long id) {
         payrollService.deletePayroll(id);
         return ResponseEntity.noContent().build();
+    }
+    
+    @PostMapping("/generate-payrun")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PAYROLL_OFFICER')")
+    public ResponseEntity<Map<String, Object>> generatePayrun(@RequestBody Map<String, Object> request) {
+        try {
+            int month = Integer.parseInt(request.get("month").toString());
+            int year = Integer.parseInt(request.get("year").toString());
+            
+            // Get all active employees
+            List<Employee> employees = employeeService.getAllActiveEmployees();
+            
+            // Calculate start and end dates for the month
+            LocalDate startDate = LocalDate.of(year, month + 1, 1); // month is 0-indexed from frontend
+            LocalDate endDate = startDate.plusMonths(1).minusDays(1);
+            
+            int successCount = 0;
+            int failureCount = 0;
+            
+            // Generate payroll for each employee
+            for (Employee employee : employees) {
+                try {
+                    payrollService.generatePayroll(employee, startDate, endDate);
+                    successCount++;
+                } catch (Exception e) {
+                    failureCount++;
+                    System.err.println("Failed to generate payroll for employee: " + employee.getEmployeeCode() + " - " + e.getMessage());
+                }
+            }
+            
+            Map<String, Object> response = Map.of(
+                "success", true,
+                "message", "Payrun generated successfully",
+                "totalEmployees", employees.size(),
+                "successCount", successCount,
+                "failureCount", failureCount
+            );
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = Map.of(
+                "success", false,
+                "message", "Failed to generate payrun: " + e.getMessage()
+            );
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+    
+    @GetMapping("/export")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PAYROLL_OFFICER')")
+    public ResponseEntity<byte[]> exportPayroll(@RequestParam int month, @RequestParam int year) {
+        try {
+            // Calculate start and end dates for the month
+            LocalDate startDate = LocalDate.of(year, month + 1, 1); // month is 0-indexed from frontend
+            LocalDate endDate = startDate.plusMonths(1).minusDays(1);
+            
+            // Get payrolls for the period
+            List<Payroll> payrolls = payrollService.getPayrollsByPeriod(startDate, endDate);
+            
+            // Create CSV content
+            StringBuilder csv = new StringBuilder();
+            csv.append("Employee ID,Employee Name,Email,Department,Basic Salary,HRA,Transport,Medical,Other Allowances,Bonus,Gross Salary,PF,Professional Tax,Income Tax,Other Deductions,Total Deductions,Net Salary,Month\n");
+            
+            for (Payroll payroll : payrolls) {
+                Employee emp = payroll.getEmployee();
+                csv.append(String.format("%s,%s %s,%s,%s,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%s\n",
+                    emp.getEmployeeCode(),
+                    emp.getFirstName(),
+                    emp.getLastName(),
+                    emp.getEmail(),
+                    emp.getDepartment() != null ? emp.getDepartment().getName() : "N/A",
+                    payroll.getBasicSalary(),
+                    payroll.getHra() != null ? payroll.getHra() : 0.0,
+                    payroll.getTransportAllowance() != null ? payroll.getTransportAllowance() : 0.0,
+                    payroll.getMedicalAllowance() != null ? payroll.getMedicalAllowance() : 0.0,
+                    payroll.getOtherAllowances() != null ? payroll.getOtherAllowances() : 0.0,
+                    payroll.getBonus() != null ? payroll.getBonus() : 0.0,
+                    payroll.getGrossSalary(),
+                    payroll.getProvidentFund() != null ? payroll.getProvidentFund() : 0.0,
+                    payroll.getProfessionalTax() != null ? payroll.getProfessionalTax() : 0.0,
+                    payroll.getIncomeTax() != null ? payroll.getIncomeTax() : 0.0,
+                    payroll.getOtherDeductions() != null ? payroll.getOtherDeductions() : 0.0,
+                    payroll.getTotalDeductions(),
+                    payroll.getNetSalary(),
+                    payroll.getSalaryMonth()
+                ));
+            }
+            
+            byte[] csvBytes = csv.toString().getBytes();
+            
+            return ResponseEntity.ok()
+                .header("Content-Type", "text/csv")
+                .header("Content-Disposition", "attachment; filename=payroll_" + year + "_" + (month + 1) + ".csv")
+                .body(csvBytes);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }

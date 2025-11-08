@@ -51,12 +51,14 @@ public class LeaveBalanceController {
     }
     
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<LeaveBalance> getLeaveBalanceById(@PathVariable Long id) {
         LeaveBalance leaveBalance = leaveBalanceService.findById(id);
         return ResponseEntity.ok(leaveBalance);
     }
     
     @GetMapping("/my-balances")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<LeaveBalance>> getMyLeaveBalances(@AuthenticationPrincipal UserDetails userDetails) {
         Employee employee = (Employee) userDetails;
         Integer currentYear = LocalDate.now().getYear();

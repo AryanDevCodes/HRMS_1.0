@@ -5,6 +5,7 @@ import com.workzen.entity.Employee;
 import com.workzen.enums.Role;
 import com.workzen.enums.EmployeeStatus;
 import com.workzen.repository.EmployeeRepository;
+import com.workzen.util.PasswordResetTokenUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,17 +17,21 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class EmployeeService {
-    
+    private static final Logger logger = LoggerFactory.getLogger(EmployeeService.class);
+
     private final EmployeeRepository employeeRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmployeeIdGeneratorService employeeIdGeneratorService;
     private final EmailService emailService;
     private final com.workzen.util.PasswordGenerator passwordGenerator;
+    private final PasswordResetTokenUtil passwordResetTokenUtil;
     
     public Employee createEmployee(Employee employee) {
         // Validate email uniqueness
@@ -54,28 +59,42 @@ public class EmployeeService {
         String temporaryPassword;
         if (employee.getPassword() == null || employee.getPassword().trim().isEmpty()) {
             temporaryPassword = passwordGenerator.generateTemporaryPassword();
+            logger.info("Generated temporary password for {}: {} (length: {})", 
+                employee.getEmail(), temporaryPassword, temporaryPassword.length());
             employee.setPassword(passwordEncoder.encode(temporaryPassword));
         } else {
             temporaryPassword = employee.getPassword();
+            logger.info("Using provided password for {}: {} (length: {})", 
+                employee.getEmail(), temporaryPassword, temporaryPassword.length());
             employee.setPassword(passwordEncoder.encode(temporaryPassword));
         }
+        logger.info("Password encoded and set for {}", employee.getEmail());
         
         // Save employee first
         Employee savedEmployee = employeeRepository.save(employee);
         
         // Send welcome email with credentials
         try {
-            emailService.sendWelcomeEmail(
-                savedEmployee.getEmail(),
+            // Generate password reset link
+            String resetPasswordLink = passwordResetTokenUtil.generateResetPasswordLink(
                 savedEmployee.getEmployeeCode(),
-                savedEmployee.getFirstName(),
-                savedEmployee.getLastName(),
-                temporaryPassword
+                savedEmployee.getEmail()
             );
+            
+            // Send comprehensive welcome email with credentials
+            logger.info("Sending welcome email to {} with temporary password: {}", 
+                savedEmployee.getEmail(), temporaryPassword);
+            emailService.sendWelcomeEmailWithCredentials(
+                savedEmployee.getEmail(),
+                savedEmployee.getFirstName() + " " + savedEmployee.getLastName(),
+                savedEmployee.getEmployeeCode(),
+                temporaryPassword,
+                resetPasswordLink
+            );
+            logger.info("Welcome email sent successfully to {}", savedEmployee.getEmail());
         } catch (Exception e) {
-            // Log error but don't fail employee creation
             // The admin can manually send credentials if email fails
-            System.err.println("Failed to send welcome email to " + savedEmployee.getEmail() + ": " + e.getMessage());
+            logger.error("Failed to send welcome email to {}: {}", savedEmployee.getEmail(), e.getMessage(), e);
         }
         
         return savedEmployee;
@@ -177,13 +196,19 @@ public class EmployeeService {
         employee.setPassword(passwordEncoder.encode(newTempPassword));
         employeeRepository.save(employee);
         
-        // Send welcome email
-        emailService.sendWelcomeEmail(
-            employee.getEmail(),
+        // Generate password reset link
+        String resetPasswordLink = passwordResetTokenUtil.generateResetPasswordLink(
             employee.getEmployeeCode(),
-            employee.getFirstName(),
-            employee.getLastName(),
-            newTempPassword
+            employee.getEmail()
+        );
+        
+        // Send welcome email with credentials
+        emailService.sendWelcomeEmailWithCredentials(
+            employee.getEmail(),
+            employee.getFirstName() + " " + employee.getLastName(),
+            employee.getEmployeeCode(),
+            newTempPassword,
+            resetPasswordLink
         );
     }
     
@@ -195,12 +220,16 @@ public class EmployeeService {
         employee.setPassword(passwordEncoder.encode(newTempPassword));
         employeeRepository.save(employee);
         
+        // Generate password reset link
+        String resetPasswordLink = passwordResetTokenUtil.generateResetPasswordLink(
+            employee.getEmployeeCode(),
+            employee.getEmail()
+        );
+        
         // Send password reset email
         emailService.sendPasswordResetEmail(
             employee.getEmail(),
-            employee.getEmployeeCode(),
-            employee.getFirstName(),
-            newTempPassword
+            resetPasswordLink
         );
     }
     
@@ -228,5 +257,13 @@ public class EmployeeService {
     
     public long getActiveEmployeeCount() {
         return employeeRepository.countByStatus(EmployeeStatus.ACTIVE);
+    }
+    
+    public List<Employee> getAllActiveEmployees() {
+        return employeeRepository.findByStatus(EmployeeStatus.ACTIVE);
+    }
+    
+    public Employee saveEmployee(Employee employee) {
+        return employeeRepository.save(employee);
     }
 }

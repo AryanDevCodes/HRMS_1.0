@@ -11,12 +11,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class PayrollService {
     
+    private static final Logger logger = LoggerFactory.getLogger(PayrollService.class);
+
     private final PayrollRepository payrollRepository;
     
     public Payroll generatePayroll(Employee employee, LocalDate payPeriodStart, LocalDate payPeriodEnd) {
@@ -124,7 +128,7 @@ public class PayrollService {
                     try {
                         return generatePayroll(employee, payPeriodStart, payPeriodEnd);
                     } catch (RuntimeException e) {
-                        System.err.println("Failed to generate payroll for employee: " + employee.getEmployeeCode() + " - " + e.getMessage());
+                        logger.error("Failed to generate payroll for employee: {} - {}", employee.getEmployeeCode(), e.getMessage());
                         return null;
                     }
                 })

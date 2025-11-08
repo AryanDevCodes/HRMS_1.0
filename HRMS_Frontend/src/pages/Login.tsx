@@ -2,12 +2,17 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Building2 } from 'lucide-react';
+import { Building2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { authApi, ApiError } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import type { LoginRequest } from '@/lib/api';
+import { Link } from 'react-router-dom';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -19,6 +24,8 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function Login() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -28,16 +35,65 @@ export default function Login() {
     },
   });
 
-  const onSubmit = (data: LoginFormValues) => {
-    // TODO: Implement real authentication
-    toast({
-      title: 'Login successful',
-      description: 'Welcome back!',
-    });
-    navigate('/');
-  };
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, authLoading, navigate]);
 
-  return (
+  const onSubmit = (data: LoginFormValues) => {
+    setIsLoading(true);
+    console.log('Login attempt:', data.email);
+
+    authApi.login(data as LoginRequest)
+      .then((response) => {
+
+        console.log('Login response:', response);
+        console.log('Login response received:', response);
+        
+        // Store refresh token
+        if (response.refreshToken) {
+          localStorage.setItem('refreshToken', response.refreshToken);
+        }
+        
+        // Update auth context
+        login(response.accessToken, response.user);
+        console.log('Auth context updated');
+        
+        toast({
+          title: 'Login successful',
+          description: `Welcome back, ${response.user.firstName}!`,
+        });
+
+        // Check if first login - redirect to change password
+        if (response.isFirstLogin) {
+          console.log('First login detected, redirecting to change password');
+          navigate('/change-password', { replace: true });
+        } else {
+          navigate('/', { replace: true });
+        }
+      })
+      .catch((error) => {
+        console.error('Login error:', error);
+        if (error instanceof ApiError) {
+          toast({
+            title: 'Login failed',
+            description: error.message,
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: 'Error',
+            description: 'An unexpected error occurred. Please try again.',
+            variant: 'destructive',
+          });
+        }
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  };  return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
@@ -76,13 +132,33 @@ export default function Login() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full">
-                Sign In
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign In'
+                )}
               </Button>
             </form>
           </Form>
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            Demo credentials: admin@company.com / password
+          
+          <div className="mt-4 text-center text-sm">
+            <p className="text-muted-foreground">
+              Don't have an account?{' '}
+              <Link to="/signup" className="text-primary hover:underline font-medium">
+                Sign Up
+              </Link>
+            </p>
+          </div>
+
+          <div className="mt-4 space-y-1 text-center text-xs text-muted-foreground">
+            <p className="font-medium">Demo Credentials:</p>
+            <p>Admin: admin@workzen.com / admin12345678</p>
+            <p>HR: hr.manager@workzen.com / hr12345678</p>
+            <p>Payroll: payroll@workzen.com / payro12345678</p>
           </div>
         </CardContent>
       </Card>

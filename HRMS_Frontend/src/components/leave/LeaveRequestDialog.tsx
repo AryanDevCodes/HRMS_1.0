@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { leaveApi, leaveTypeApi } from '@/lib/api';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -23,9 +25,18 @@ const leaveRequestSchema = z.object({
 
 type LeaveRequestFormValues = z.infer<typeof leaveRequestSchema>;
 
+
 export default function LeaveRequestDialog() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+
+  // Fetch leave types for mapping value to id
+  const { data: leaveTypes, isLoading: leaveTypesLoading } = useQuery({
+    queryKey: ['leaveTypes'],
+    queryFn: leaveTypeApi.getActive,
+  });
 
   const form = useForm<LeaveRequestFormValues>({
     resolver: zodResolver(leaveRequestSchema),
@@ -37,19 +48,47 @@ export default function LeaveRequestDialog() {
     },
   });
 
-  const onSubmit = (data: LeaveRequestFormValues) => {
-    // Calculate days
-    const start = new Date(data.startDate);
-    const end = new Date(data.endDate);
-    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const mutation = useMutation({
+    mutationFn: async (data: LeaveRequestFormValues) => {
+      // Map leaveType value to leaveTypeId
+      let leaveTypeId = null;
+      if (leaveTypes && Array.isArray(leaveTypes)) {
+        const found = leaveTypes.find((lt: any) => {
+          // Match by code (value in SelectItem)
+          return lt.code?.toLowerCase() === data.leaveType.toLowerCase();
+        });
+        leaveTypeId = found?.id;
+      }
+      if (!leaveTypeId) {
+        throw new Error('Invalid leave type selected.');
+      }
+      return leaveApi.apply({
+        leaveTypeId,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        reason: data.reason,
+      });
+    },
+    onSuccess: (result, data) => {
+      toast({
+        title: 'Leave request submitted',
+        description: `Your leave request has been submitted for approval.`,
+      });
+      setOpen(false);
+      form.reset();
+      queryClient.invalidateQueries({ queryKey: ['myLeaves'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to submit leave request',
+        variant: 'destructive',
+      });
+    },
+  });
 
-    console.log('Leave request:', { ...data, days });
-    toast({
-      title: 'Leave request submitted',
-      description: `Your ${data.leaveType} leave request for ${days} day(s) has been submitted for approval.`,
-    });
-    setOpen(false);
-    form.reset();
+  const onSubmit = (data: LeaveRequestFormValues) => {
+    mutation.mutate(data);
   };
 
   return (
@@ -73,19 +112,21 @@ export default function LeaveRequestDialog() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Leave Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={leaveTypesLoading}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select leave type" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="annual">Annual Leave</SelectItem>
-                      <SelectItem value="sick">Sick Leave</SelectItem>
-                      <SelectItem value="casual">Casual Leave</SelectItem>
-                      <SelectItem value="maternity">Maternity Leave</SelectItem>
-                      <SelectItem value="paternity">Paternity Leave</SelectItem>
-                      <SelectItem value="unpaid">Unpaid Leave</SelectItem>
+                      {leaveTypes && leaveTypes.length > 0
+                        ? leaveTypes
+                            .filter((lt: any) => lt.code && lt.code !== "")
+                            .map((lt: any) => (
+                              <SelectItem key={lt.id} value={lt.code}>{lt.name}</SelectItem>
+                            ))
+                        : <SelectItem value="no-types" disabled>No leave types available</SelectItem>
+                      }
                     </SelectContent>
                   </Select>
                   <FormMessage />

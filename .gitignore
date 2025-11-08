@@ -44,3 +44,8 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Uploaded Files ###
+uploads/**
+!uploads/.gitkeep
+!uploads/*/.gitkeep

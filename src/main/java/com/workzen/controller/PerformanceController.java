@@ -46,6 +46,7 @@ public class PerformanceController {
     }
     
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Performance> getPerformanceById(@PathVariable Long id,
                                                            @AuthenticationPrincipal UserDetails userDetails) {
         Employee employee = (Employee) userDetails;
@@ -61,6 +62,7 @@ public class PerformanceController {
     }
     
     @GetMapping("/my-reviews")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Performance>> getMyReviews(@AuthenticationPrincipal UserDetails userDetails) {
         Employee employee = (Employee) userDetails;
         List<Performance> reviews = performanceService.getEmployeePerformanceReviews(employee);
@@ -68,6 +70,7 @@ public class PerformanceController {
     }
     
     @GetMapping("/my-reviews/paginated")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Page<Performance>> getMyReviewsPaginated(@AuthenticationPrincipal UserDetails userDetails,
                                                                     Pageable pageable) {
         Employee employee = (Employee) userDetails;
@@ -76,6 +79,7 @@ public class PerformanceController {
     }
     
     @GetMapping("/my-reviews/year")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Performance>> getMyReviewsByYear(@AuthenticationPrincipal UserDetails userDetails,
                                                                   @RequestParam int year) {
         Employee employee = (Employee) userDetails;

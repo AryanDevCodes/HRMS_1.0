@@ -1,186 +1,150 @@
 package com.workzen.config;
 
-import com.workzen.entity.Department;
-import com.workzen.entity.Designation;
 import com.workzen.entity.Employee;
-import com.workzen.enums.EmployeeStatus;
-import com.workzen.enums.Gender;
+import com.workzen.entity.SalaryComponent;
 import com.workzen.enums.Role;
-import com.workzen.repository.DepartmentRepository;
-import com.workzen.repository.DesignationRepository;
-import com.workzen.repository.EmployeeRepository;
+import com.workzen.enums.SalaryComponentType;
+import com.workzen.repository.SalaryComponentRepository;
+import com.workzen.service.EmployeeService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 import java.time.LocalDate;
 
-@Component
+@Configuration
 @RequiredArgsConstructor
-@Slf4j
-public class DataInitializer implements CommandLineRunner {
-    
-    private final EmployeeRepository employeeRepository;
-    private final DepartmentRepository departmentRepository;
-    private final DesignationRepository designationRepository;
-    private final PasswordEncoder passwordEncoder;
-    
-    @Override
-    public void run(String... args) throws Exception {
-        initializeDefaultData();
+public class DataInitializer {
+
+    private static final Logger logger = LoggerFactory.getLogger(DataInitializer.class);
+
+    private final EmployeeService employeeService;
+    private final SalaryComponentRepository salaryComponentRepository;
+
+    @Bean
+    CommandLineRunner seedUsers() {
+        return args -> {
+            try {
+                createIfNotExists("admin@workzen.com", "Admin", "User", "admin12345678", Role.ADMIN);
+                createIfNotExists("hr.manager@workzen.com", "HR", "Manager", "hr12345678", Role.HR_MANAGER);
+                createIfNotExists("payroll@workzen.com", "Payroll", "Officer", "payro12345678", Role.PAYROLL_OFFICER);
+            } catch (Exception e) {
+                logger.error("Error while seeding initial users: {}", e.getMessage(), e);
+            }
+        };
     }
     
-    private void initializeDefaultData() {
-        // Check if admin user already exists
-        if (employeeRepository.findByEmail("admin@workzen.com").isPresent()) {
-            log.info("Default users already exist. Skipping initialization.");
-            return;
+    @Bean
+    CommandLineRunner seedSalaryComponents() {
+        return args -> {
+            try {
+                if (salaryComponentRepository.count() > 0) {
+                    logger.info("Salary components already exist — skipping seeding");
+                    return;
+                }
+                
+                logger.info("Seeding default salary components...");
+                
+                // EARNINGS
+                // Basic Salary - 50% of total monthly wage
+                createSalaryComponent("Basic Salary", "BASIC_SALARY", "Base salary component", 
+                        SalaryComponentType.EARNING, true, 50.0, null, null, true, true, 1, true, null);
+                
+                // HRA - 50% of Basic Salary
+                createSalaryComponent("House Rent Allowance", "HRA", "Housing allowance based on basic salary", 
+                        SalaryComponentType.EARNING, true, 50.0, null, "BASIC_SALARY", true, true, 2, true, null);
+                
+                // Standard Allowance - 16.67% of total
+                createSalaryComponent("Standard Allowance", "STANDARD_ALLOWANCE", "Standard monthly allowance", 
+                        SalaryComponentType.EARNING, true, 16.67, null, null, true, true, 3, true, null);
+                
+                // Performance Bonus - 8.33% of total
+                createSalaryComponent("Performance Bonus", "PERFORMANCE_BONUS", "Performance-based monthly bonus", 
+                        SalaryComponentType.EARNING, true, 8.33, null, null, true, true, 4, false, null);
+                
+                // LTA - 8.33% of total
+                createSalaryComponent("Leave Travel Allowance", "LTA", "Travel allowance", 
+                        SalaryComponentType.EARNING, true, 8.33, null, null, true, false, 5, false, null);
+                
+                // Fixed Allowance - 11.67% of total
+                createSalaryComponent("Fixed Allowance", "FIXED_ALLOWANCE", "Fixed monthly allowance", 
+                        SalaryComponentType.EARNING, true, 11.67, null, null, true, true, 6, true, null);
+                
+                // DEDUCTIONS
+                // PF Employee - 12% of Basic Salary, max 15000
+                createSalaryComponent("Provident Fund (Employee)", "PF_EMPLOYEE", "Employee contribution to PF", 
+                        SalaryComponentType.DEDUCTION, true, 12.0, null, "BASIC_SALARY", true, false, 7, true, 15000.0);
+                
+                // PF Employer - 12% of Basic Salary, max 15000 (shown for reference, not deducted from salary)
+                createSalaryComponent("Provident Fund (Employer)", "PF_EMPLOYER", "Employer contribution to PF", 
+                        SalaryComponentType.DEDUCTION, true, 12.0, null, "BASIC_SALARY", true, false, 8, true, 15000.0);
+                
+                // Professional Tax - Fixed 200
+                createSalaryComponent("Professional Tax", "PROFESSIONAL_TAX", "Monthly professional tax", 
+                        SalaryComponentType.DEDUCTION, false, null, 200.0, null, true, true, 9, true, null);
+                
+                // TDS - Tax Deducted at Source (will be calculated based on annual income slabs)
+                // For simplicity, using 10% of taxable income above 50,000/month
+                createSalaryComponent("TDS (Tax Deducted at Source)", "TDS", "Income tax deduction at source", 
+                        SalaryComponentType.DEDUCTION, true, 10.0, null, null, true, false, 10, false, null);
+                
+                logger.info("Default salary components seeded successfully!");
+                
+            } catch (Exception e) {
+                logger.error("Error while seeding salary components: {}", e.getMessage(), e);
+            }
+        };
+    }
+    
+    private void createSalaryComponent(String name, String code, String description, 
+                                       SalaryComponentType type, Boolean isPercentage, 
+                                       Double percentageValue, Double fixedAmount, 
+                                       String basedOnComponentCode, Boolean isActive, 
+                                       Boolean isTaxable, Integer displayOrder, 
+                                       Boolean isMandatory, Double maxLimit) {
+        SalaryComponent component = SalaryComponent.builder()
+                .name(name)
+                .code(code)
+                .description(description)
+                .type(type)
+                .isPercentage(isPercentage)
+                .percentageValue(percentageValue)
+                .fixedAmount(fixedAmount)
+                .basedOnComponentCode(basedOnComponentCode)
+                .isActive(isActive)
+                .isTaxable(isTaxable)
+                .displayOrder(displayOrder)
+                .isMandatory(isMandatory)
+                .maxLimit(maxLimit)
+                .build();
+        
+        salaryComponentRepository.save(component);
+        logger.info("Created salary component: {} ({})", name, code);
+    }
+
+    private void createIfNotExists(String email, String firstName, String lastName, String rawPassword, Role role) {
+        try {
+            if (employeeService.findByEmail(email).isPresent()) {
+                logger.info("User with email {} already exists — skipping creation", email);
+                return;
+            }
+
+            Employee employee = Employee.builder()
+                    .firstName(firstName)
+                    .lastName(lastName)
+                    .email(email)
+                    .password(rawPassword) // will be encoded by EmployeeService.createEmployee
+                    .role(role)
+                    .dateOfJoining(LocalDate.now())
+                    .build();
+
+            employeeService.createEmployee(employee);
+            logger.info("Created initial user: {} with role {}", email, role.name());
+        } catch (Exception e) {
+            logger.error("Failed to create user {}: {}", email, e.getMessage(), e);
         }
-        
-        log.info("Initializing default data...");
-        
-        // Create Departments
-        Department itDept = Department.builder()
-                .name("Information Technology")
-                .description("IT and Software Development")
-                .isActive(true)
-                .build();
-        departmentRepository.save(itDept);
-        
-        Department hrDept = Department.builder()
-                .name("Human Resources")
-                .description("HR and Employee Management")
-                .isActive(true)
-                .build();
-        departmentRepository.save(hrDept);
-        
-        Department financeDept = Department.builder()
-                .name("Finance")
-                .description("Finance and Accounting")
-                .isActive(true)
-                .build();
-        departmentRepository.save(financeDept);
-        
-        // Create Designations
-        Designation adminDesignation = Designation.builder()
-                .name("System Administrator")
-                .description("System Administrator")
-                .level(1)
-                .isActive(true)
-                .build();
-        designationRepository.save(adminDesignation);
-        
-        Designation hrManagerDesignation = Designation.builder()
-                .name("HR Manager")
-                .description("Human Resources Manager")
-                .level(2)
-                .isActive(true)
-                .build();
-        designationRepository.save(hrManagerDesignation);
-        
-        Designation payrollOfficerDesignation = Designation.builder()
-                .name("Payroll Officer")
-                .description("Payroll Officer")
-                .level(3)
-                .isActive(true)
-                .build();
-        designationRepository.save(payrollOfficerDesignation);
-        
-        // Create Admin User
-        Employee admin = Employee.builder()
-                .employeeCode("EMP00001")
-                .firstName("System")
-                .lastName("Administrator")
-                .email("admin@workzen.com")
-                .password(passwordEncoder.encode("admin123"))
-                .phone("+1234567890")
-                .dateOfBirth(LocalDate.of(1985, 1, 1))
-                .gender(Gender.MALE)
-                .address("123 Admin Street")
-                .city("Admin City")
-                .state("Admin State")
-                .pincode("123456")
-                .dateOfJoining(LocalDate.now())
-                .role(Role.ADMIN)
-                .department(itDept)
-                .designation(adminDesignation)
-                .status(EmployeeStatus.ACTIVE)
-                .salary(100000.0)
-                .isActive(true)
-                .build();
-        
-        employeeRepository.save(admin);
-        
-        // Set admin as IT department manager
-        itDept.setManager(admin);
-        departmentRepository.save(itDept);
-        
-        // Create HR Manager
-        Employee hrManager = Employee.builder()
-                .employeeCode("EMP00002")
-                .firstName("Jane")
-                .lastName("Smith")
-                .email("hr.manager@workzen.com")
-                .password(passwordEncoder.encode("hr123"))
-                .phone("+1234567891")
-                .dateOfBirth(LocalDate.of(1988, 3, 15))
-                .gender(Gender.FEMALE)
-                .address("456 HR Avenue")
-                .city("HR City")
-                .state("HR State")
-                .pincode("123457")
-                .dateOfJoining(LocalDate.now())
-                .role(Role.HR_MANAGER)
-                .department(hrDept)
-                .designation(hrManagerDesignation)
-                .status(EmployeeStatus.ACTIVE)
-                .salary(80000.0)
-                .manager(admin)
-                .isActive(true)
-                .build();
-        
-        employeeRepository.save(hrManager);
-        
-        // Set HR manager as HR department manager
-        hrDept.setManager(hrManager);
-        departmentRepository.save(hrDept);
-        
-        // Create Payroll Officer
-        Employee payrollOfficer = Employee.builder()
-                .employeeCode("EMP00003")
-                .firstName("John")
-                .lastName("Doe")
-                .email("payroll.officer@workzen.com")
-                .password(passwordEncoder.encode("payroll123"))
-                .phone("+1234567892")
-                .dateOfBirth(LocalDate.of(1990, 7, 20))
-                .gender(Gender.MALE)
-                .address("789 Payroll Lane")
-                .city("Payroll City")
-                .state("Payroll State")
-                .pincode("123458")
-                .dateOfJoining(LocalDate.now())
-                .role(Role.PAYROLL_OFFICER)
-                .department(financeDept)
-                .designation(payrollOfficerDesignation)
-                .status(EmployeeStatus.ACTIVE)
-                .salary(60000.0)
-                .manager(admin)
-                .isActive(true)
-                .build();
-        
-        employeeRepository.save(payrollOfficer);
-        
-        // Set payroll officer as Finance department manager
-        financeDept.setManager(payrollOfficer);
-        departmentRepository.save(financeDept);
-        
-        log.info("Default data created successfully:");
-        log.info("Departments: IT, HR, Finance");
-        log.info("Admin: admin@workzen.com / admin123");
-        log.info("HR Manager: hr.manager@workzen.com / hr123");
-        log.info("Payroll Officer: payroll.officer@workzen.com / payroll123");
     }
 }

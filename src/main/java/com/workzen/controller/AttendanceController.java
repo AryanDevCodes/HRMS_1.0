@@ -1,5 +1,6 @@
 package com.workzen.controller;
 
+import com.workzen.dto.AttendanceDTO;
 import com.workzen.entity.Attendance;
 import com.workzen.entity.Employee;
 import com.workzen.enums.AttendanceStatus;
@@ -19,6 +20,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/attendance")
@@ -29,15 +31,20 @@ public class AttendanceController {
     private final EmployeeService employeeService;
     
     @PostMapping("/check-in")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Attendance> checkIn(@AuthenticationPrincipal UserDetails userDetails) {
-        Employee employee = (Employee) userDetails;
+        // Resolve Employee from authenticated principal's username/email
+        Employee employee = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Authenticated employee not found"));
         Attendance attendance = attendanceService.checkIn(employee, LocalDateTime.now());
         return new ResponseEntity<>(attendance, HttpStatus.CREATED);
     }
     
     @PatchMapping("/check-out")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Attendance> checkOut(@AuthenticationPrincipal UserDetails userDetails) {
-        Employee employee = (Employee) userDetails;
+        Employee employee = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Authenticated employee not found"));
         Attendance attendance = attendanceService.checkOut(employee, LocalDateTime.now());
         return ResponseEntity.ok(attendance);
     }
@@ -66,41 +73,83 @@ public class AttendanceController {
     }
     
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Attendance> getAttendanceById(@PathVariable Long id) {
         Attendance attendance = attendanceService.findById(id);
         return ResponseEntity.ok(attendance);
     }
     
     @GetMapping("/today")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Attendance> getTodayAttendance(@AuthenticationPrincipal UserDetails userDetails) {
-        Employee employee = (Employee) userDetails;
+        Employee employee = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Authenticated employee not found"));
         Attendance attendance = attendanceService.getTodayAttendance(employee);
+        if (attendance == null) {
+            return ResponseEntity.noContent().build();
+        }
         return ResponseEntity.ok(attendance);
     }
     
+    @GetMapping("/my-attendance/today")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<AttendanceDTO> getMyTodayAttendance(@AuthenticationPrincipal UserDetails userDetails) {
+        Employee employee = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Authenticated employee not found"));
+        Attendance attendance = attendanceService.getTodayAttendance(employee);
+        if (attendance == null) {
+            return ResponseEntity.noContent().build();
+        }
+        AttendanceDTO dto = convertToDTO(attendance);
+        return ResponseEntity.ok(dto);
+    }
+    
+    private AttendanceDTO convertToDTO(Attendance attendance) {
+        return AttendanceDTO.builder()
+                .id(attendance.getId())
+                .date(attendance.getDate())
+                .checkIn(attendance.getCheckIn())
+                .checkOut(attendance.getCheckOut())
+                .totalHours(attendance.getTotalHours())
+                .status(attendance.getStatus())
+                .remarks(attendance.getRemarks())
+                .isOvertime(attendance.getIsOvertime())
+                .overtimeHours(attendance.getOvertimeHours())
+                .employeeId(attendance.getEmployee().getId())
+                .employeeName(attendance.getEmployee().getFullName())
+                .employeeCode(attendance.getEmployee().getEmployeeCode())
+                .build();
+    }
+    
     @GetMapping("/my-attendance")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Attendance>> getMyAttendance(@AuthenticationPrincipal UserDetails userDetails,
                                                              @RequestParam LocalDate startDate,
                                                              @RequestParam LocalDate endDate) {
-        Employee employee = (Employee) userDetails;
-        List<Attendance> attendance = attendanceService.getEmployeeAttendance(employee, startDate, endDate);
+    Employee employee = employeeService.findByEmail(userDetails.getUsername())
+        .orElseThrow(() -> new RuntimeException("Authenticated employee not found"));
+    List<Attendance> attendance = attendanceService.getEmployeeAttendance(employee, startDate, endDate);
         return ResponseEntity.ok(attendance);
     }
     
     @GetMapping("/my-attendance/month")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Attendance>> getMyMonthlyAttendance(@AuthenticationPrincipal UserDetails userDetails,
                                                                      @RequestParam int year,
                                                                      @RequestParam int month) {
-        Employee employee = (Employee) userDetails;
-        List<Attendance> attendance = attendanceService.getMonthlyAttendance(employee, year, month);
+    Employee employee = employeeService.findByEmail(userDetails.getUsername())
+        .orElseThrow(() -> new RuntimeException("Authenticated employee not found"));
+    List<Attendance> attendance = attendanceService.getMonthlyAttendance(employee, year, month);
         return ResponseEntity.ok(attendance);
     }
     
     @GetMapping("/my-attendance/paginated")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Page<Attendance>> getMyAttendancePaginated(@AuthenticationPrincipal UserDetails userDetails,
                                                                        Pageable pageable) {
-        Employee employee = (Employee) userDetails;
-        Page<Attendance> attendance = attendanceService.getEmployeeAttendance(employee, pageable);
+    Employee employee = employeeService.findByEmail(userDetails.getUsername())
+        .orElseThrow(() -> new RuntimeException("Authenticated employee not found"));
+    Page<Attendance> attendance = attendanceService.getEmployeeAttendance(employee, pageable);
         return ResponseEntity.ok(attendance);
     }
     
@@ -146,6 +195,40 @@ public class AttendanceController {
         );
         
         return ResponseEntity.ok(stats);
+    }
+    
+    @GetMapping("/today/all")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<Map<String, Object>>> getAllEmployeesTodayAttendance() {
+        List<Employee> allEmployees = employeeService.getAllActiveEmployees();
+        LocalDate today = LocalDate.now();
+        List<Map<String, Object>> employeesWithStatus = allEmployees.stream()
+                .map(employee -> {
+                    Attendance todayAttendance = attendanceService.getTodayAttendance(employee);
+                    String status;
+                    
+                    if (todayAttendance != null) {
+                        status = todayAttendance.getStatus().toString();
+                    } else {
+                        // Check if employee has approved leave for today
+                        boolean hasLeaveToday = attendanceService.hasApprovedLeaveToday(employee);
+                        status = hasLeaveToday ? "ON_LEAVE" : "ABSENT";
+                    }
+                    
+                    Map<String, Object> empMap = new HashMap<>();
+                    empMap.put("employeeId", employee.getId());
+                    empMap.put("employeeCode", employee.getEmployeeCode());
+                    empMap.put("firstName", employee.getFirstName());
+                    empMap.put("lastName", employee.getLastName());
+                    empMap.put("email", employee.getEmail());
+                    empMap.put("department", employee.getDepartment() != null ? employee.getDepartment().getName() : "N/A");
+                    empMap.put("attendanceStatus", status);
+                    
+                    return empMap;
+                })
+                .toList();
+        
+        return ResponseEntity.ok(employeesWithStatus);
     }
     
     @DeleteMapping("/{id}")

@@ -32,24 +32,28 @@ public class DesignationController {
     }
     
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Designation> getDesignationById(@PathVariable Long id) {
         Designation designation = designationService.findById(id);
         return ResponseEntity.ok(designation);
     }
     
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Designation>> getAllDesignations() {
         List<Designation> designations = designationService.findAll();
         return ResponseEntity.ok(designations);
     }
     
     @GetMapping("/active")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Designation>> getActiveDesignations() {
         List<Designation> designations = designationService.findAllActive();
         return ResponseEntity.ok(designations);
     }
     
     @GetMapping("/active/ordered")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Designation>> getActiveDesignationsOrderedByLevel() {
         List<Designation> designations = designationService.findAllActiveOrderedByLevel();
         return ResponseEntity.ok(designations);
