@@ -81,6 +81,12 @@
 			<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
 		
+		<!-- Jackson Hibernate6 Module for lazy loading -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.datatype</groupId>
+			<artifactId>jackson-datatype-hibernate6</artifactId>
+		</dependency>
+		
 		<!-- H2 Database for development -->
 		<dependency>
 			<groupId>com.h2database</groupId>

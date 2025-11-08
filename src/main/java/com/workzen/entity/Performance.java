@@ -1,5 +1,6 @@
 package com.workzen.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.workzen.enums.ReviewStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -18,6 +19,7 @@ import java.time.LocalDate;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Performance extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

@@ -1,5 +1,6 @@
 package com.workzen.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.workzen.enums.EmployeeStatus;
 import com.workzen.enums.Gender;
 import com.workzen.enums.Role;
@@ -24,6 +25,7 @@ import java.util.Collections;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Employee extends BaseEntity implements UserDetails {
     
     @Column(name = "employee_code", unique = true, nullable = false, length = 30)

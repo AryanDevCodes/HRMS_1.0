@@ -40,6 +40,27 @@ export default function Leave() {
     enabled: isManager,
   });
 
+  // Fetch all requests (for managers)
+  const { data: allRequests, isLoading: allRequestsLoading } = useQuery({
+    queryKey: ['allLeaveRequests'],
+    queryFn: leaveApi.getAll,
+    enabled: isManager,
+  });
+
+  // Fetch approved leaves (for managers)
+  const { data: approvedLeaves, isLoading: approvedLoading } = useQuery({
+    queryKey: ['approvedLeaves'],
+    queryFn: leaveApi.getApproved,
+    enabled: isManager,
+  });
+
+  // Fetch rejected leaves (for managers)
+  const { data: rejectedLeaves, isLoading: rejectedLoading } = useQuery({
+    queryKey: ['rejectedLeaves'],
+    queryFn: leaveApi.getRejected,
+    enabled: isManager,
+  });
+
   // Fetch leave balances
   const { data: leaveBalances, isLoading: balancesLoading } = useQuery({
     queryKey: ['myLeaveBalances'],
@@ -61,6 +82,8 @@ export default function Leave() {
         description: 'Leave request approved successfully',
       });
       queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
+      queryClient.invalidateQueries({ queryKey: ['allLeaveRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['approvedLeaves'] });
       queryClient.invalidateQueries({ queryKey: ['myLeaves'] });
     },
     onError: (error: any) => {
@@ -81,6 +104,8 @@ export default function Leave() {
         description: 'Leave request rejected',
       });
       queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
+      queryClient.invalidateQueries({ queryKey: ['allLeaveRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['rejectedLeaves'] });
       queryClient.invalidateQueries({ queryKey: ['myLeaves'] });
     },
     onError: (error: any) => {
@@ -152,7 +177,7 @@ export default function Leave() {
     return leaves?.filter(req => req.status?.toLowerCase() === status) || [];
   };
 
-  const renderLeaveTable = (leaves: any[], showActions: boolean = false, showEmployee: boolean = false) => {
+  const renderLeaveTable = (leaves: any[], showActions: boolean = false, showEmployee: boolean = false, forceShowActions: boolean = false) => {
     if (!leaves || leaves.length === 0) {
       return (
         <div className="py-8 text-center text-muted-foreground">
@@ -161,11 +186,15 @@ export default function Leave() {
       );
     }
 
+    // Determine if current user can approve/reject based on role
+    const canApprove = isManager || forceShowActions;
+
     return (
       <Table>
         <TableHeader>
           <TableRow>
-            {showEmployee && <TableHead>Employee</TableHead>}
+            {showEmployee && <TableHead>Employee ID</TableHead>}
+            {showEmployee && <TableHead>Employee Name</TableHead>}
             <TableHead>Leave Type</TableHead>
             <TableHead>Start Date</TableHead>
             <TableHead>End Date</TableHead>
@@ -178,6 +207,11 @@ export default function Leave() {
         <TableBody>
           {leaves.map((request) => (
             <TableRow key={request.id}>
+              {showEmployee && (
+                <TableCell className="font-medium">
+                  {request.employee?.employeeCode || request.employee?.employeeId || 'N/A'}
+                </TableCell>
+              )}
               {showEmployee && (
                 <TableCell className="font-medium">
                   {request.employee?.firstName} {request.employee?.lastName}
@@ -202,14 +236,14 @@ export default function Leave() {
                 </Badge>
               </TableCell>
               <TableCell className="text-right">
-                {showActions && request.status?.toLowerCase() === 'pending' && (
+                {(showActions || canApprove) && request.status?.toLowerCase() === 'pending' && (
                   <div className="flex justify-end gap-2">
                     <Button 
                       size="sm" 
                       variant="outline"
                       onClick={() => approveMutation.mutate(request.id)}
                       disabled={approveMutation.isPending}
-                      className="gap-1"
+                      className="gap-1 text-green-600 hover:text-green-700 hover:bg-green-50"
                     >
                       <CheckCircle className="h-3 w-3" />
                       Approve
@@ -219,14 +253,14 @@ export default function Leave() {
                       variant="outline"
                       onClick={() => rejectMutation.mutate(request.id)}
                       disabled={rejectMutation.isPending}
-                      className="gap-1"
+                      className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
                       <XCircle className="h-3 w-3" />
                       Reject
                     </Button>
                   </div>
                 )}
-                {!showActions && request.status?.toLowerCase() === 'pending' && (
+                {!showActions && !canApprove && request.status?.toLowerCase() === 'pending' && (
                   <Button 
                     size="sm" 
                     variant="ghost"
@@ -244,7 +278,7 @@ export default function Leave() {
     );
   };
 
-  const isLoading = myLeavesLoading || balancesLoading || approvalsLoading;
+  const isLoading = myLeavesLoading || balancesLoading || approvalsLoading || allRequestsLoading || approvedLoading || rejectedLoading;
 
   return (
     <div className="space-y-6">
@@ -330,9 +364,9 @@ export default function Leave() {
             <TabsList className="mb-6">
               <TabsTrigger value="my-leaves">My Leaves</TabsTrigger>
               {isManager && <TabsTrigger value="pending-approvals">Pending Approvals</TabsTrigger>}
-              <TabsTrigger value="all">All Requests</TabsTrigger>
-              <TabsTrigger value="approved">Approved</TabsTrigger>
-              <TabsTrigger value="rejected">Rejected</TabsTrigger>
+              {isManager && <TabsTrigger value="all">All Requests</TabsTrigger>}
+              {isManager && <TabsTrigger value="approved">All Approved</TabsTrigger>}
+              {isManager && <TabsTrigger value="rejected">All Rejected</TabsTrigger>}
             </TabsList>
 
             {isLoading ? (
@@ -351,17 +385,23 @@ export default function Leave() {
                   </TabsContent>
                 )}
 
-                <TabsContent value="all">
-                  {renderLeaveTable(myLeaves || [], false, false)}
-                </TabsContent>
+                {isManager && (
+                  <TabsContent value="all">
+                    {renderLeaveTable(allRequests || [], false, true)}
+                  </TabsContent>
+                )}
 
-                <TabsContent value="approved">
-                  {renderLeaveTable(filterByStatus(myLeaves || [], 'approved'), false, false)}
-                </TabsContent>
+                {isManager && (
+                  <TabsContent value="approved">
+                    {renderLeaveTable(approvedLeaves || [], false, true)}
+                  </TabsContent>
+                )}
 
-                <TabsContent value="rejected">
-                  {renderLeaveTable(filterByStatus(myLeaves || [], 'rejected'), false, false)}
-                </TabsContent>
+                {isManager && (
+                  <TabsContent value="rejected">
+                    {renderLeaveTable(rejectedLeaves || [], false, true)}
+                  </TabsContent>
+                )}
               </>
             )}
           </Tabs>

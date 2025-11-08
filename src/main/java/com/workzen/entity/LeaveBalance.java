@@ -1,5 +1,6 @@
 package com.workzen.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -12,6 +13,7 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class LeaveBalance extends BaseEntity {
     
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

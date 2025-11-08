@@ -60,7 +60,8 @@ public class LeaveBalanceController {
     @GetMapping("/my-balances")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<LeaveBalance>> getMyLeaveBalances(@AuthenticationPrincipal UserDetails userDetails) {
-        Employee employee = (Employee) userDetails;
+        Employee employee = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         Integer currentYear = LocalDate.now().getYear();
         List<LeaveBalance> balances = leaveBalanceService.getEmployeeLeaveBalances(employee, currentYear);
         return ResponseEntity.ok(balances);

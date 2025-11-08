@@ -1,5 +1,6 @@
 package com.workzen.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.workzen.enums.LeaveStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -17,6 +18,7 @@ import java.time.LocalDate;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class LeaveApplication extends BaseEntity {
     
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

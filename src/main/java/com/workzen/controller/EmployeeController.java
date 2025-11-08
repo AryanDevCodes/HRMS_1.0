@@ -265,7 +265,7 @@ public class EmployeeController {
     
     // Get employee statistics
     @GetMapping("/statistics")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('HR_MANAGER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<EmployeeStatistics> getEmployeeStatistics() {
         long totalEmployees = employeeService.getTotalEmployeeCount();
         long activeEmployees = employeeService.getActiveEmployeeCount();

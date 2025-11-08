@@ -6,6 +6,7 @@ import com.workzen.entity.LeaveType;
 import com.workzen.repository.LeaveBalanceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -86,18 +87,25 @@ public class LeaveBalanceService {
         return leaveBalanceRepository.findByEmployee(employee);
     }
     
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void initializeLeaveBalancesForEmployee(Employee employee, Integer year) {
         List<LeaveType> activeLeaveTypes = leaveTypeService.findAllActive();
         
         for (LeaveType leaveType : activeLeaveTypes) {
-            if (!leaveBalanceRepository.existsByEmployeeAndLeaveTypeAndYear(employee, leaveType, year)) {
-                Double allocation = leaveType.getMaxDaysPerYear() != null ? 
-                                    leaveType.getMaxDaysPerYear().doubleValue() : 20.0;
-                createLeaveBalance(employee, leaveType, year, allocation);
+            try {
+                if (!leaveBalanceRepository.existsByEmployeeAndLeaveTypeAndYear(employee, leaveType, year)) {
+                    Double allocation = leaveType.getMaxDaysPerYear() != null ? 
+                                        leaveType.getMaxDaysPerYear().doubleValue() : 20.0;
+                    createLeaveBalance(employee, leaveType, year, allocation);
+                }
+            } catch (Exception e) {
+                // Log and continue with next leave type
+                System.err.println("Failed to initialize leave balance for " + leaveType.getName() + ": " + e.getMessage());
             }
         }
     }
     
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void initializeLeaveBalancesForCurrentYear(Employee employee) {
         Integer currentYear = LocalDate.now().getYear();
         initializeLeaveBalancesForEmployee(employee, currentYear);

@@ -591,6 +591,35 @@ export const leaveApi = {
   getEmployeeLeaves: (employeeId: number): Promise<LeaveApplication[]> => {
     return apiRequest<LeaveApplication[]>(`/leave-applications/employee/${employeeId}`);
   },
+
+  getAll: (): Promise<LeaveApplication[]> => {
+    return apiRequest<LeaveApplication[]>('/leave-applications/all');
+  },
+
+  getApproved: (): Promise<LeaveApplication[]> => {
+    return apiRequest<LeaveApplication[]>('/leave-applications/approved');
+  },
+
+  getRejected: (): Promise<LeaveApplication[]> => {
+    return apiRequest<LeaveApplication[]>('/leave-applications/rejected');
+  },
+
+  getLogs: (leaveApplicationId: number): Promise<Array<{
+    id: number;
+    previousStatus: string | null;
+    newStatus: string;
+    actionType: string;
+    remarks: string;
+    changedAt: string;
+    changedBy: {
+      id: number;
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
+  }>> => {
+    return apiRequest(`/leave-applications/logs/${leaveApplicationId}`);
+  },
 };
 
 // ==================== Leave Balance API ====================

@@ -30,7 +30,8 @@ public class PerformanceController {
     @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER')")
     public ResponseEntity<Performance> createPerformanceReview(@RequestBody Performance performance,
                                                                 @AuthenticationPrincipal UserDetails userDetails) {
-        Employee reviewer = (Employee) userDetails;
+        Employee reviewer = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         performance.setReviewer(reviewer);
         
         Performance created = performanceService.createPerformanceReview(performance);
@@ -49,7 +50,8 @@ public class PerformanceController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Performance> getPerformanceById(@PathVariable Long id,
                                                            @AuthenticationPrincipal UserDetails userDetails) {
-        Employee employee = (Employee) userDetails;
+        Employee employee = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         Performance performance = performanceService.findById(id);
         
         // Employees can only view their own reviews unless they are ADMIN/HR_MANAGER
@@ -64,7 +66,8 @@ public class PerformanceController {
     @GetMapping("/my-reviews")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Performance>> getMyReviews(@AuthenticationPrincipal UserDetails userDetails) {
-        Employee employee = (Employee) userDetails;
+        Employee employee = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         List<Performance> reviews = performanceService.getEmployeePerformanceReviews(employee);
         return ResponseEntity.ok(reviews);
     }
@@ -73,7 +76,8 @@ public class PerformanceController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Page<Performance>> getMyReviewsPaginated(@AuthenticationPrincipal UserDetails userDetails,
                                                                     Pageable pageable) {
-        Employee employee = (Employee) userDetails;
+        Employee employee = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         Page<Performance> reviews = performanceService.getEmployeePerformanceReviews(employee, pageable);
         return ResponseEntity.ok(reviews);
     }
@@ -82,7 +86,8 @@ public class PerformanceController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Performance>> getMyReviewsByYear(@AuthenticationPrincipal UserDetails userDetails,
                                                                   @RequestParam int year) {
-        Employee employee = (Employee) userDetails;
+        Employee employee = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         List<Performance> reviews = performanceService.getEmployeePerformanceReviewsByYear(employee, year);
         return ResponseEntity.ok(reviews);
     }
@@ -115,7 +120,8 @@ public class PerformanceController {
     @GetMapping("/reviewed-by-me")
     @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER')")
     public ResponseEntity<List<Performance>> getReviewsByReviewer(@AuthenticationPrincipal UserDetails userDetails) {
-        Employee reviewer = (Employee) userDetails;
+        Employee reviewer = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         List<Performance> reviews = performanceService.getPerformanceReviewsByReviewer(reviewer);
         return ResponseEntity.ok(reviews);
     }

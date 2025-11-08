@@ -56,7 +56,8 @@ public class PayrollController {
     @GetMapping("/my-payrolls")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Payroll>> getMyPayrolls(@AuthenticationPrincipal UserDetails userDetails) {
-        Employee employee = (Employee) userDetails;
+        Employee employee = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         List<Payroll> payrolls = payrollService.getEmployeePayrolls(employee);
         return ResponseEntity.ok(payrolls);
     }
@@ -65,7 +66,8 @@ public class PayrollController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Page<Payroll>> getMyPayrollsPaginated(@AuthenticationPrincipal UserDetails userDetails,
                                                                  Pageable pageable) {
-        Employee employee = (Employee) userDetails;
+        Employee employee = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         Page<Payroll> payrolls = payrollService.getEmployeePayrolls(employee, pageable);
         return ResponseEntity.ok(payrolls);
     }
@@ -75,7 +77,8 @@ public class PayrollController {
     public ResponseEntity<List<Payroll>> getMyPayrollForPeriod(@AuthenticationPrincipal UserDetails userDetails,
                                                           @RequestParam LocalDate startDate,
                                                           @RequestParam LocalDate endDate) {
-        Employee employee = (Employee) userDetails;
+        Employee employee = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         List<Payroll> payrolls = payrollService.getPayrollsByPeriod(startDate, endDate);
         return ResponseEntity.ok(payrolls.stream()
                 .filter(p -> p.getEmployee().getId().equals(employee.getId()))

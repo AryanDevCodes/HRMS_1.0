@@ -34,7 +34,8 @@ public class LeaveApplicationController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<LeaveApplication> applyLeave(@AuthenticationPrincipal UserDetails userDetails,
                                                         @RequestBody Map<String, Object> request) {
-        Employee employee = (Employee) userDetails;
+        Employee employee = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         Long leaveTypeId = Long.valueOf(request.get("leaveTypeId").toString());
         LocalDate startDate = LocalDate.parse(request.get("startDate").toString());
         LocalDate endDate = LocalDate.parse(request.get("endDate").toString());
@@ -53,7 +54,8 @@ public class LeaveApplicationController {
     @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER')")
     public ResponseEntity<LeaveApplication> approveLeave(@PathVariable Long id,
                                                           @AuthenticationPrincipal UserDetails userDetails) {
-        Employee approver = (Employee) userDetails;
+        Employee approver = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         LeaveApplication approved = leaveApplicationService.approveLeave(id, approver);
         return ResponseEntity.ok(approved);
     }
@@ -63,7 +65,8 @@ public class LeaveApplicationController {
     public ResponseEntity<LeaveApplication> rejectLeave(@PathVariable Long id,
                                                          @AuthenticationPrincipal UserDetails userDetails,
                                                          @RequestBody Map<String, String> request) {
-        Employee approver = (Employee) userDetails;
+        Employee approver = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         String rejectionReason = request.get("rejectionReason");
         LeaveApplication rejected = leaveApplicationService.rejectLeave(id, approver, rejectionReason);
         return ResponseEntity.ok(rejected);
@@ -73,7 +76,8 @@ public class LeaveApplicationController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<LeaveApplication> cancelLeave(@PathVariable Long id,
                                                          @AuthenticationPrincipal UserDetails userDetails) {
-        Employee employee = (Employee) userDetails;
+        Employee employee = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         LeaveApplication cancelled = leaveApplicationService.cancelLeave(id, employee);
         return ResponseEntity.ok(cancelled);
     }
@@ -88,7 +92,8 @@ public class LeaveApplicationController {
     @GetMapping("/my-leaves")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<LeaveApplication>> getMyLeaves(@AuthenticationPrincipal UserDetails userDetails) {
-        Employee employee = (Employee) userDetails;
+        Employee employee = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         List<LeaveApplication> leaves = leaveApplicationService.getEmployeeLeaves(employee);
         return ResponseEntity.ok(leaves);
     }
@@ -97,7 +102,8 @@ public class LeaveApplicationController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Page<LeaveApplication>> getMyLeavesPaginated(@AuthenticationPrincipal UserDetails userDetails,
                                                                          Pageable pageable) {
-        Employee employee = (Employee) userDetails;
+        Employee employee = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         Page<LeaveApplication> leaves = leaveApplicationService.getEmployeeLeaves(employee, pageable);
         return ResponseEntity.ok(leaves);
     }
@@ -110,9 +116,10 @@ public class LeaveApplicationController {
     }
     
     @GetMapping("/pending-approvals")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<LeaveApplication>> getPendingApprovals(@AuthenticationPrincipal UserDetails userDetails) {
-        Employee manager = (Employee) userDetails;
+        Employee manager = employeeService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         List<LeaveApplication> leaves = leaveApplicationService.getPendingApprovalsForManager(manager);
         return ResponseEntity.ok(leaves);
     }
@@ -130,5 +137,33 @@ public class LeaveApplicationController {
         Employee employee = employeeService.findById(employeeId);
         List<LeaveApplication> leaves = leaveApplicationService.getEmployeeLeaves(employee);
         return ResponseEntity.ok(leaves);
+    }
+    
+    @GetMapping("/all")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER')")
+    public ResponseEntity<List<LeaveApplication>> getAllLeaveRequests() {
+        List<LeaveApplication> leaves = leaveApplicationService.getAllLeaveRequests();
+        return ResponseEntity.ok(leaves);
+    }
+    
+    @GetMapping("/approved")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER')")
+    public ResponseEntity<List<LeaveApplication>> getApprovedLeaves() {
+        List<LeaveApplication> leaves = leaveApplicationService.getLeavesByStatus(LeaveStatus.APPROVED);
+        return ResponseEntity.ok(leaves);
+    }
+    
+    @GetMapping("/rejected")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER')")
+    public ResponseEntity<List<LeaveApplication>> getRejectedLeaves() {
+        List<LeaveApplication> leaves = leaveApplicationService.getLeavesByStatus(LeaveStatus.REJECTED);
+        return ResponseEntity.ok(leaves);
+    }
+    
+    @GetMapping("/logs/{leaveApplicationId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<Map<String, Object>>> getLeaveLogs(@PathVariable Long leaveApplicationId) {
+        List<Map<String, Object>> logs = leaveApplicationService.getLeaveApplicationLogs(leaveApplicationId);
+        return ResponseEntity.ok(logs);
     }
 }

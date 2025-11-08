@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Attendance extends BaseEntity {
     
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

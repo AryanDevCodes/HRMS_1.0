@@ -53,10 +53,8 @@ export default function LeaveRequestDialog() {
       // Map leaveType value to leaveTypeId
       let leaveTypeId = null;
       if (leaveTypes && Array.isArray(leaveTypes)) {
-        const found = leaveTypes.find((lt: any) => {
-          // Match by code (value in SelectItem)
-          return lt.code?.toLowerCase() === data.leaveType.toLowerCase();
-        });
+        // Match by id (Select stores id as string)
+        const found = leaveTypes.find((lt: any) => String(lt.id) === String(data.leaveType));
         leaveTypeId = found?.id;
       }
       if (!leaveTypeId) {
@@ -119,14 +117,13 @@ export default function LeaveRequestDialog() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {leaveTypes && leaveTypes.length > 0
-                        ? leaveTypes
-                            .filter((lt: any) => lt.code && lt.code !== "")
-                            .map((lt: any) => (
-                              <SelectItem key={lt.id} value={lt.code}>{lt.name}</SelectItem>
-                            ))
-                        : <SelectItem value="no-types" disabled>No leave types available</SelectItem>
-                      }
+                      {leaveTypes && leaveTypes.length > 0 ? (
+                        leaveTypes.map((lt: any) => (
+                          <SelectItem key={lt.id} value={String(lt.id)}>{lt.name}</SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-types" disabled>No leave types available</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />

@@ -101,10 +101,10 @@ export default function Dashboard() {
               <span className="text-primary font-bold">
                 {user.firstName}{user.lastName ? ' ' + user.lastName : ''}
               </span>
-              ! Here's what's happening today.
+              ! Here's what happening today.
             </>
           ) : (
-            <>Welcome back! Here's what's happening today.</>
+            <>Welcome back! Here's what happening today.</>
           )}
         </p>
       </div>
@@ -120,25 +120,28 @@ export default function Dashboard() {
               title="Total Employees"
               value={stats?.totalEmployees || 0}
               icon={Users}
-              change={'+2.5% from last month'}
+              change={stats?.activeEmployees ? `${stats.activeEmployees} active, ${stats.inactiveEmployees || 0} inactive` : undefined}
               trend={'up'}
             />
             <StatCard
               title="Active Employees"
               value={stats?.activeEmployees || 0}
               icon={UserCheck}
-              // change={`${stats?.activeEmployees || 0} active`}
+              change={`${((stats?.activeEmployees || 0) / (stats?.totalEmployees || 1) * 100).toFixed(1)}% of total`}
               trend="up"
             />
             <StatCard
-              title="Inactive"
+              title="Inactive Employees"
               value={stats?.inactiveEmployees || 0}
               icon={UserX}
+              change={`${((stats?.inactiveEmployees || 0) / (stats?.totalEmployees || 1) * 100).toFixed(1)}% of total`}
+              trend={stats?.inactiveEmployees && stats.inactiveEmployees > 0 ? 'down' : undefined}
             />
             <StatCard
               title="Pending Leave Requests"
               value={pendingLeaves?.length || 0}
               icon={Clock}
+              change={pendingLeaves && pendingLeaves.length > 0 ? 'Requires attention' : 'All clear'}
             />
           </div>
 

@@ -1,9 +1,11 @@
 package com.workzen.config;
 
 import com.workzen.entity.Employee;
+import com.workzen.entity.LeaveType;
 import com.workzen.entity.SalaryComponent;
 import com.workzen.enums.Role;
 import com.workzen.enums.SalaryComponentType;
+import com.workzen.repository.LeaveTypeRepository;
 import com.workzen.repository.SalaryComponentRepository;
 import com.workzen.service.EmployeeService;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +14,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 
@@ -23,6 +27,7 @@ public class DataInitializer {
 
     private final EmployeeService employeeService;
     private final SalaryComponentRepository salaryComponentRepository;
+    private final LeaveTypeRepository leaveTypeRepository;
 
     @Bean
     CommandLineRunner seedUsers() {
@@ -34,6 +39,22 @@ public class DataInitializer {
             } catch (Exception e) {
                 logger.error("Error while seeding initial users: {}", e.getMessage(), e);
             }
+        };
+    }
+    
+    @Bean
+    CommandLineRunner seedLeaveTypes() {
+        return args -> {
+            logger.info("Seeding default leave types...");
+            
+            createLeaveType("Annual Leave", "Paid annual vacation leave", 21, true, true);
+            createLeaveType("Sick Leave", "Leave for medical reasons", 12, false, true);
+            createLeaveType("Casual Leave", "Short-term personal leave", 10, true, true);
+            createLeaveType("Maternity Leave", "Maternity leave for expecting mothers", 180, true, true);
+            createLeaveType("Paternity Leave", "Paternity leave for new fathers", 14, true, true);
+            createLeaveType("Unpaid Leave", "Leave without pay", 30, true, false);
+            
+            logger.info("Leave types seeding completed!");
         };
     }
     
@@ -146,5 +167,36 @@ public class DataInitializer {
         } catch (Exception e) {
             logger.error("Failed to create user {}: {}", email, e.getMessage(), e);
         }
+    }
+    
+    private void createLeaveType(String name, String description, Integer maxDaysPerYear, 
+                                 Boolean requiresApproval, Boolean isPaid) {
+        try {
+            // Check outside transaction first
+            if (leaveTypeRepository.existsByName(name)) {
+                logger.info("Leave type '{}' already exists — skipping", name);
+                return;
+            }
+            
+            // Create and save in a new independent transaction
+            saveLeaveTypeInNewTransaction(name, description, maxDaysPerYear, requiresApproval, isPaid);
+            logger.info("Created leave type: {}", name);
+        } catch (Exception e) {
+            logger.error("Failed to create leave type '{}': {}", name, e.getMessage(), e);
+        }
+    }
+    
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    private void saveLeaveTypeInNewTransaction(String name, String description, Integer maxDaysPerYear, 
+                                               Boolean requiresApproval, Boolean isPaid) {
+        LeaveType leaveType = LeaveType.builder()
+                .name(name)
+                .description(description)
+                .maxDaysPerYear(maxDaysPerYear)
+                .requiresApproval(requiresApproval)
+                .isPaid(isPaid)
+                .isActive(true)
+                .build();
+        leaveTypeRepository.save(leaveType);
     }
 }

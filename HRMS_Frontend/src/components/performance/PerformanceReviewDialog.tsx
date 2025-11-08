@@ -11,19 +11,23 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormDescription, For
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { employeeApi, performanceApi } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 const performanceReviewSchema = z.object({
-  employeeName: z.string().min(1, 'Please select an employee'),
-  reviewPeriod: z.string().min(1, 'Please select a review period'),
+  employeeId: z.string().min(1, 'Please select an employee'),
+  reviewPeriodStart: z.string().min(1, 'Please enter start date'),
+  reviewPeriodEnd: z.string().min(1, 'Please enter end date'),
   overallRating: z.number().min(1).max(5),
-  technicalSkills: z.number().min(1).max(5),
-  communication: z.number().min(1).max(5),
-  teamwork: z.number().min(1).max(5),
-  productivity: z.number().min(1).max(5),
+  technicalSkillsRating: z.number().min(1).max(5),
+  communicationRating: z.number().min(1).max(5),
+  teamworkRating: z.number().min(1).max(5),
+  leadershipRating: z.number().min(1).max(5),
   strengths: z.string().min(20, 'Strengths must be at least 20 characters'),
   areasForImprovement: z.string().min(20, 'Areas for improvement must be at least 20 characters'),
   goals: z.string().min(20, 'Goals must be at least 20 characters'),
-  comments: z.string().optional(),
+  reviewerComments: z.string().optional(),
 });
 
 type PerformanceReviewFormValues = z.infer<typeof performanceReviewSchema>;
@@ -31,32 +35,90 @@ type PerformanceReviewFormValues = z.infer<typeof performanceReviewSchema>;
 export default function PerformanceReviewDialog() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // Debug: Log current user info
+  console.log('Current User:', user);
+  console.log('Current User Role:', user?.role);
+
+    // Fetch all employees (always fetch, not just when dialog is open)
+  const { data: employeesData, isLoading: employeesLoading, error: employeesError } = useQuery({
+    queryKey: ['employees-for-review'],
+    queryFn: () => employeeApi.getAll({ page: 0, size: 100 }),
+  });
+
+  // Filter out ADMIN users - only show HR_MANAGER and EMPLOYEE roles
+  const employees = (employeesData?.content || []).filter((emp: any) => 
+    emp.role === 'HR_MANAGER' || emp.role === 'EMPLOYEE'
+  );
+
+  // Debug logging
+  console.log('Employees Data:', employeesData);
+  console.log('Filtered Employees:', employees);
+  console.log('Loading:', employeesLoading);
+  console.log('Error:', employeesError);
+  if (employeesError) {
+    console.log('Error Details:', JSON.stringify(employeesError, null, 2));
+  }
+
+  console.log('Employees Data:', employeesData);
+  console.log('Filtered Employees:', employees);
 
   const form = useForm<PerformanceReviewFormValues>({
     resolver: zodResolver(performanceReviewSchema),
     defaultValues: {
-      employeeName: '',
-      reviewPeriod: '',
+      employeeId: '',
+      reviewPeriodStart: '',
+      reviewPeriodEnd: '',
       overallRating: 3,
-      technicalSkills: 3,
-      communication: 3,
-      teamwork: 3,
-      productivity: 3,
+      technicalSkillsRating: 3,
+      communicationRating: 3,
+      teamworkRating: 3,
+      leadershipRating: 3,
       strengths: '',
       areasForImprovement: '',
       goals: '',
-      comments: '',
+      reviewerComments: '',
+    },
+  });
+
+  const createReviewMutation = useMutation({
+    mutationFn: performanceApi.create,
+    onSuccess: () => {
+      toast({
+        title: 'Review submitted',
+        description: 'Performance review has been created successfully.',
+      });
+      setOpen(false);
+      form.reset();
+      queryClient.invalidateQueries({ queryKey: ['my-reviews'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to create performance review',
+        variant: 'destructive',
+      });
     },
   });
 
   const onSubmit = (data: PerformanceReviewFormValues) => {
-    console.log('Performance review:', data);
-    toast({
-      title: 'Review submitted',
-      description: `Performance review for ${data.employeeName} has been saved successfully.`,
+    createReviewMutation.mutate({
+      employeeId: Number(data.employeeId),
+      reviewPeriodStart: data.reviewPeriodStart,
+      reviewPeriodEnd: data.reviewPeriodEnd,
+      overallRating: data.overallRating,
+      technicalSkillsRating: data.technicalSkillsRating,
+      communicationRating: data.communicationRating,
+      teamworkRating: data.teamworkRating,
+      leadershipRating: data.leadershipRating,
+      strengths: data.strengths,
+      areasForImprovement: data.areasForImprovement,
+      goals: data.goals,
+      reviewerComments: data.reviewerComments,
+      status: 'COMPLETED',
     });
-    setOpen(false);
-    form.reset();
   };
 
   const RatingField = ({ 
@@ -80,7 +142,7 @@ export default function PerformanceReviewDialog() {
               <Slider
                 min={1}
                 max={5}
-                step={1}
+                step={0.5}
                 value={[field.value as number]}
                 onValueChange={(vals) => field.onChange(vals[0])}
                 className="flex-1"
@@ -112,7 +174,7 @@ export default function PerformanceReviewDialog() {
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="employeeName"
+                name="employeeId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Employee</FormLabel>
@@ -123,10 +185,11 @@ export default function PerformanceReviewDialog() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="John Smith">John Smith</SelectItem>
-                        <SelectItem value="Sarah Johnson">Sarah Johnson</SelectItem>
-                        <SelectItem value="Michael Chen">Michael Chen</SelectItem>
-                        <SelectItem value="Emily Davis">Emily Davis</SelectItem>
+                        {employees.map((emp: any) => (
+                          <SelectItem key={emp.id} value={emp.id.toString()}>
+                            {emp.employeeCode} - {emp.firstName} {emp.lastName}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -136,29 +199,32 @@ export default function PerformanceReviewDialog() {
 
               <FormField
                 control={form.control}
-                name="reviewPeriod"
+                name="reviewPeriodStart"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Review Period</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select period" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Q1 2024">Q1 2024</SelectItem>
-                        <SelectItem value="Q2 2024">Q2 2024</SelectItem>
-                        <SelectItem value="Q3 2024">Q3 2024</SelectItem>
-                        <SelectItem value="Q4 2024">Q4 2024</SelectItem>
-                        <SelectItem value="Annual 2024">Annual 2024</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>Review Period Start</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="reviewPeriodEnd"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Review Period End</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="space-y-4 rounded-lg border p-4">
               <h3 className="font-semibold">Performance Ratings</h3>
@@ -167,10 +233,10 @@ export default function PerformanceReviewDialog() {
                 label="Overall Performance" 
                 description="General assessment of employee's performance"
               />
-              <RatingField name="technicalSkills" label="Technical Skills" />
-              <RatingField name="communication" label="Communication" />
-              <RatingField name="teamwork" label="Teamwork & Collaboration" />
-              <RatingField name="productivity" label="Productivity & Efficiency" />
+              <RatingField name="technicalSkillsRating" label="Technical Skills" />
+              <RatingField name="communicationRating" label="Communication" />
+              <RatingField name="teamworkRating" label="Teamwork & Collaboration" />
+              <RatingField name="leadershipRating" label="Leadership & Initiative" />
             </div>
 
             <FormField
@@ -229,10 +295,10 @@ export default function PerformanceReviewDialog() {
 
             <FormField
               control={form.control}
-              name="comments"
+              name="reviewerComments"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Additional Comments (Optional)</FormLabel>
+                  <FormLabel>Reviewer Comments (Optional)</FormLabel>
                   <FormControl>
                     <Textarea 
                       placeholder="Any additional feedback or comments..."
@@ -249,7 +315,9 @@ export default function PerformanceReviewDialog() {
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Submit Review</Button>
+              <Button type="submit" disabled={createReviewMutation.isPending}>
+                {createReviewMutation.isPending ? 'Submitting...' : 'Submit Review'}
+              </Button>
             </div>
           </form>
         </Form>
