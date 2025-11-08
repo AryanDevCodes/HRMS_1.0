@@ -1,0 +1,46 @@
+HELP.md
+HRMS_Frontend/node_modules/
+HRMS_Frontend/dist/
+HRMS_Frontend/.env*
+HRMS_Frontend/.next/
+HRMS_Frontend/.turbo/
+HRMS_Frontend/.cache/
+HRMS_Frontend/.output/
+HRMS_Frontend/.vercel/
+HRMS_Frontend/yarn.lock
+HRMS_Frontend/package-lock.json
+HRMS_Frontend/pnpm-lock.yaml
+HRMS_Frontend/bun.lockb
+
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
