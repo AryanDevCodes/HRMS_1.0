@@ -160,7 +160,7 @@ export default function Attendance() {
   const attendanceRecords = attendanceData?.content || [];
   const totalPages = attendanceData?.totalPages || 0;
   const hasCheckedIn = !!(todayAttendance && todayAttendance.checkIn);
-  const hasCheckedOut = !!(todayAttendance && (todayAttendance as any).checkOut);
+  const hasCheckedOut = !!(todayAttendance && todayAttendance.checkOut);
 
   return (
     <div className="space-y-6">
@@ -227,8 +227,8 @@ export default function Attendance() {
                       <div>
                         <p className="text-sm text-muted-foreground">Check Out</p>
                         <p className="text-lg font-semibold">
-                          {(todayAttendance as any)?.checkOut 
-                            ? formatTime((todayAttendance as any).checkOut) 
+                          {todayAttendance?.checkOut 
+                            ? formatTime(todayAttendance.checkOut) 
                             : 'Not checked out'}
                         </p>
                       </div>
@@ -246,7 +246,7 @@ export default function Attendance() {
                       <div>
                         <p className="text-sm text-muted-foreground">Work Hours</p>
                         <p className="text-lg font-semibold">
-                          {calculateWorkHours(todayAttendance?.checkIn, (todayAttendance as any)?.checkOut)}
+                          {calculateWorkHours(todayAttendance?.checkIn, todayAttendance?.checkOut)}
                         </p>
                       </div>
                     </div>
@@ -330,9 +330,9 @@ export default function Attendance() {
                       <TableCell className="font-medium">
                         {record.date ? format(new Date(record.date), 'MMM dd, yyyy') : 'N/A'}
                       </TableCell>
-                      <TableCell>{formatTime((record as any).checkIn)}</TableCell>
-                      <TableCell>{formatTime((record as any).checkOut)}</TableCell>
-                      <TableCell>{calculateWorkHours((record as any).checkIn, (record as any).checkOut)}</TableCell>
+                      <TableCell>{formatTime(record.checkIn)}</TableCell>
+                      <TableCell>{formatTime(record.checkOut)}</TableCell>
+                      <TableCell>{calculateWorkHours(record.checkIn, record.checkOut)}</TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(record.status)}>
                           {getStatusLabel(record.status)}
