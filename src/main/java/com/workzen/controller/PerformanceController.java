@@ -28,11 +28,33 @@ public class PerformanceController {
     
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER')")
-    public ResponseEntity<Performance> createPerformanceReview(@RequestBody Performance performance,
+    public ResponseEntity<Performance> createPerformanceReview(@RequestBody Map<String, Object> request,
                                                                 @AuthenticationPrincipal UserDetails userDetails) {
+        // Get reviewer (current user)
         Employee reviewer = employeeService.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new RuntimeException("Employee not found"));
-        performance.setReviewer(reviewer);
+                .orElseThrow(() -> new RuntimeException("Reviewer not found"));
+        
+        // Get employee being reviewed
+        Long employeeId = Long.valueOf(request.get("employeeId").toString());
+        Employee employee = employeeService.findById(employeeId);
+        
+        // Build Performance object
+        Performance performance = Performance.builder()
+                .employee(employee)
+                .reviewer(reviewer)
+                .reviewPeriodStart(LocalDate.parse(request.get("reviewPeriodStart").toString()))
+                .reviewPeriodEnd(LocalDate.parse(request.get("reviewPeriodEnd").toString()))
+                .overallRating(Double.valueOf(request.get("overallRating").toString()))
+                .technicalSkillsRating(Double.valueOf(request.get("technicalSkillsRating").toString()))
+                .communicationRating(Double.valueOf(request.get("communicationRating").toString()))
+                .teamworkRating(Double.valueOf(request.get("teamworkRating").toString()))
+                .leadershipRating(Double.valueOf(request.get("leadershipRating").toString()))
+                .strengths(request.get("strengths").toString())
+                .areasForImprovement(request.get("areasForImprovement").toString())
+                .goals(request.get("goals").toString())
+                .reviewerComments(request.get("reviewerComments") != null ? request.get("reviewerComments").toString() : null)
+                .reviewDate(LocalDate.now())
+                .build();
         
         Performance created = performanceService.createPerformanceReview(performance);
         return new ResponseEntity<>(created, HttpStatus.CREATED);

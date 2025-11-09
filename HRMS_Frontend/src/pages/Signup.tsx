@@ -284,7 +284,6 @@ export default function Signup() {
                   )}
                 />
 
-                {/* Password */}
                 <FormField
                   control={form.control}
                   name="password"

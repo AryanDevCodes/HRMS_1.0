@@ -35,6 +35,15 @@ export default function Performance() {
     queryFn: () => performanceApi.getMyReviewsPaginated(page, pageSize),
   });
 
+  // Fetch year-specific reviews for stats
+  const { data: yearReviews } = useQuery({
+    queryKey: ['my-reviews-year', selectedYear],
+    queryFn: async () => {
+      const userInfo = JSON.parse(localStorage.getItem('user') || '{}');
+      return performanceApi.getMyReviewsByYear(selectedYear);
+    },
+  });
+
   // Fetch average rating
   const { data: avgRating } = useQuery({
     queryKey: ['average-rating'],
@@ -46,7 +55,10 @@ export default function Performance() {
 
   const reviews = reviewsData?.content || [];
   const totalPages = reviewsData?.totalPages || 0;
+  const totalReviews = reviewsData?.totalElements || 0;
   const averageRating = avgRating?.averageRating || 0;
+  const reviewsThisYear = yearReviews || [];
+  const completedGoals = reviewsThisYear.filter((r: any) => r.status?.toLowerCase() === 'completed').length;
 
   const getRatingColor = (rating: number) => {
     if (rating >= 4.5) return 'text-green-600';
@@ -149,7 +161,7 @@ export default function Performance() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{reviews.length}</div>
+            <div className="text-3xl font-bold">{reviewsThisYear.length}</div>
             <p className="text-xs text-muted-foreground mt-2">This year</p>
           </CardContent>
         </Card>
@@ -162,10 +174,8 @@ export default function Performance() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">
-              {reviews.filter((r: any) => r.status?.toLowerCase() === 'completed').length}
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">Out of {reviews.length}</p>
+            <div className="text-3xl font-bold">{completedGoals}</div>
+            <p className="text-xs text-muted-foreground mt-2">Out of {reviewsThisYear.length}</p>
           </CardContent>
         </Card>
 

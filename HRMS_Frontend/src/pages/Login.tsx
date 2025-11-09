@@ -154,12 +154,6 @@ export default function Login() {
             </p>
           </div>
 
-          <div className="mt-4 space-y-1 text-center text-xs text-muted-foreground">
-            <p className="font-medium">Demo Credentials:</p>
-            <p>Admin: admin@workzen.com / admin12345678</p>
-            <p>HR: hr.manager@workzen.com / hr12345678</p>
-            <p>Payroll: payroll@workzen.com / payro12345678</p>
-          </div>
         </CardContent>
       </Card>
     </div>

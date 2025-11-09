@@ -9,6 +9,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class WorkZenHrmsApplication {
 
 	public static void main(String[] args) {
+	
 		SpringApplication.run(WorkZenHrmsApplication.class, args);
 	}
 

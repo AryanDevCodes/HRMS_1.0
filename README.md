@@ -8,7 +8,7 @@ Overview
 - Frontend: React + TypeScript (Vite), Tailwind CSS, shadcn UI components, TanStack Query
 
 Structure
-
+<video controls src="docs/km_20251109_360p_60f_20251109_135236.mp4" title="Title"></video>
 - `HRMS_Frontend/` — React frontend
   - `src/` — application code
   - `src/lib/api.ts` — API wrappers used by UI
