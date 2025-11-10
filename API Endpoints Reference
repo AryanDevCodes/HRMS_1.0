@@ -1,0 +1,43 @@
+📊 API Endpoints Reference
+Authentication
+Method    Endpoint           Access    Description 
+POST     /api/auth/register  Public    Register new user
+POST     /api/auth/login     Public    Login user
+GET      /api/auth/me        Protected Get current user
+PUT      /api/auth/profile   Protected Update profile
+
+Users
+Method     Endpoint           Access        Description
+GET        /api/users         Admin         Get all users
+GET        /api/users/:id     Protected     Get user by ID
+PUT        /api/users/:id     Admin/HR      Update user
+DELETE     /api/users/:id     Admin         Delete user
+
+Attendance
+Method      Endpoint                        Access          Description
+POST        /api/attendance                ProtectedMark   attendance
+GET         /api/attendance/my-attendance  Protected       Get my attendance
+GET         /api/attendance/all            Admin/HR        Get all attendance
+
+Leaves
+Method           Endpoint                 Access               Description
+POST            /api/leaves/apply         Protected            Apply for leave
+GET            /api/leaves/my-leaves      Protected            Get my leaves
+GET            /api/leaves/pending        Approvers            Get pending leaves
+PUT            /api/leaves/:id/status     Approvers            Approve/reject leave
+POST           /api/leaves/allocate       Admin/HR             Allocate leaves
+
+Payroll
+Method         Endpoint                          Access                Description
+POST           /api/payroll/payrun               Payroll/Admin         Create payrun
+POST           /api/payroll/payrun/:id/process   Payroll/Admin         Process payrun
+GET            /api/payroll/payruns              Payroll/Admin         Get all payruns
+GET            /api/payroll/payrun/:id/payslips  Payroll/Admin         Get payslips
+GET            /api/payroll/my-payslips          Protected             Get my payslips
+GET            /api/payroll/payslip/:id/download Protected             Download payslip PDF
+
+Dashboard
+Method         Endpoint                Access                 Description
+GET            /api/dashboard/admin    Admin                  Get admin dashboard
+GET            /api/dashboard/employee Protected              Get employee dashboard
+
